@@ -20,14 +20,14 @@ const userSchema = mongoose.Schema(
         password: {
             type: String,
             require: [ture, "Password is required"],
-            maxLength: [8, "Password must be more than 8 characters"],
+            minLength: [8, "Password must be more than 8 characters"],
             select: false
         },
         role: {
             type: String,
             enum: Object.values(AuthRoles)
             default: AuthRoles.USER
-        }
+        },
         forgotPasswordToken: String,
         forgotPasswordExpiry: Date,
     },
