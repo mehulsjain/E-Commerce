@@ -39,14 +39,14 @@ const userSchema = mongoose.Schema(
 //challenge 1 - encrpyt password - hooks
 userSchema.pre("save", async function(next){
     //this.modified will check if the password field is modifying rn or not
-    if(!this.modified("password")) return next();
+    if(!this.isModified("password")) return next();
     this.password = await bcrypt.hash(this.password, 10)
     next()
 })
 
 //add more features/meathods to your schema
 
-userSchema.meathod = {
+userSchema.meathods = {
     //compare password
     comparePassword: async function (enteredPassword) {
         return await bcrypt.compare(enteredPassword, this.password)
@@ -64,7 +64,27 @@ userSchema.meathod = {
                 expiresIn: config.JWT_EXPIRY
             }
         )
-    }
+    },
+
+    //generate forgot password token
+    generateForgetPasswordToken: function () {
+        const forgotToken = crypto.randomBytes(20).toString('hex')
+
+        //step1 - saveto DB
+        this.forgotPasswordToken = crypto
+        .createHash("sha256")
+        .update(forgotToken)
+        .digest("hex")
+
+        this.forgotPasswordExpiry = Date.now() + 20 * 60 * 1000
+        
+        //step2 - return value to user
+        return forgotToken
+    },
+
+    //change password
+    //1. take password from user
+    //2. if user is logged in use auth token and take new password
 }
 
 export default mongoose.model("User",userSchema)
