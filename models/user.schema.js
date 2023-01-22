@@ -54,7 +54,7 @@ userSchema.meathods = {
 
     //generate jwt token
     getJwtToken: function(){
-        retunr JWT.sign(
+        return JWT.sign(
             {
                 _id: this._id
                 role: this.role
