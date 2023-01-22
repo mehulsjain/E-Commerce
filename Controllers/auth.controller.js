@@ -96,3 +96,11 @@ export const logout = asyncHandler(async (_req, res) => {
         })
     })
 })
+
+/************************************************************* 
+* @LOGIN
+* @route http://localhost:4000/api/auth/login
+* @description User sugnIn controller for logging in a user
+* @parameters email, password
+* @return User Object
+*************************************************************/
