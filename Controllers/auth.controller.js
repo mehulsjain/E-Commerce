@@ -10,6 +10,13 @@ export const cookieOptions = {
     // could be a seperate file in utils
 }
 
+/************************************************************* 
+* @SIGNUP
+* @route http://localhost:5000/api/auth/signup
+* @description User signUp controller for vcreating a new user
+* @parameters name, email, password
+* @return User Object
+*************************************************************/
 
 export const signUp = asyncHandler(async (req, res) => {
     const {name, email, password} = req.body
