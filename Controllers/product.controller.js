@@ -76,6 +76,7 @@ export const addProduct = asyncHandler(async (req, res) => {
                     success:true,
                     product
                 })
+                //remove images from s3 bucket
             }
         } catch (error) {
             return res.status(500).json({
@@ -85,3 +86,67 @@ export const addProduct = asyncHandler(async (req, res) => {
         }
     })
 })
+
+/************************************************************* 
+* @GET_ALL_PRODUCT
+* @route http://localhost:5000/api/product
+* @description COntroller used for getting all product details
+* @description User and admin can get all products
+* @return Products Object
+*************************************************************/
+
+export const getAllProducts = asyncHandler( async (req, res) => {
+    const products = await Product.find({})
+
+    if(!products){
+        throw new CustomError("No products were found")
+    }
+    res.status(200).json({
+        success: true,
+        products
+    })
+})
+
+/************************************************************* 
+* @GET_PRODUCT_BY_ID
+* @route http://localhost:5000/api/product
+* @description COntroller used for getting single product details
+* @description User and admin can get single product
+* @return Product Object
+*************************************************************/
+
+export const getProductById = asyncHandler( async (req, res) => {
+    const {id: productId} = req.params
+    const product = await Product.findById(productId)
+
+    if(!product){
+        throw new CustomError("No product was found")
+    }
+    res.status(200).json({
+        success: true,
+        product
+    })
+})
+
+/************************************************************* 
+* @DELETE_PRODUCT_BY_ID
+* @route http://localhost:5000/api/product
+* @description COntroller used for deleting product details
+* @description Admin can delete products
+* @return Product Object
+*************************************************************/
+
+/* 
+=> assignment to read 
+
+= indexes
+
+= model.aggregate([{}, {}, {}])
+
+= $group
+= $push
+= $$ROOT
+= $lookup
+= $project
+
+*/
