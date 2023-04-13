@@ -22,7 +22,7 @@ export const addProduct = asyncHandler(async (req, res) => {
         multiples: true,
         keepExtensions: true
     })
-
+4
     form.parse(req, async function (err, fields, files){
         try {
             if(err){

@@ -2,14 +2,16 @@ const asyncHandler = (fn) => async (req, res, next) => {
     try {
         await fn(req, res, next)
     } catch (error) {
-        res.status(error.code || 500).json({
-            success: false,
-            message: error.message
-        })
+        res.status(error.code || 500)
+        // res.json({
+        //     success: false,
+        //     message: error.message
+        // })
     }
+    next()
 }
 
-export default asyncHandler;
+module.exports = asyncHandler;
 
 
 // const asyncHandler = (fn) => async (req, res, next) => {

@@ -1,12 +1,14 @@
-import nodemailer from 'nodemailer'
-import config from './index'
+const nodemailer = require('nodemailer');
+const config = require('./index');
 
-let transporter = nodemailer.createTransport({
+const transporter = nodemailer.createTransport({
     host: config.SMTP_MAIL_HOST,
     port: config.SMTP_MAIL_PORT,
-    secyre: false, //true for 465, false for other ports
+    secure: false, //true for 465, false for other ports
     auth: {
         user: config.SMTP_MAIL_USERNAME,
         pass: config.SMTP_MAIL_PASSWORD,
     },
 })
+
+module.exports = transporter

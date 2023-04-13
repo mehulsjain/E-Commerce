@@ -1,25 +1,17 @@
-import mongoose from "mongoose";
-import app from './app'
-import config from "./config/index"
+const app = require("./app.js")
+const PORT = process.env.PORT || 4000
+require("dotenv").config()
+const cloudinary = require('cloudinary')
+const connectToDB = require("./config/db")
 
-//(async () => {})() ==== iife
-(async () => {
-    try {
-        await mongoose.connect(config.MONGODB_URL)
-        console.log("DB Connected");
+connectToDB();
 
-        app.on('error', (err) => {
-            console.log("ERROR: ", err);
-        })
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+})
 
-        onListening = () => {
-            console.log(`Listening on ${config.PORT}`);
-        }
-
-        app.listen(config.PORT, onListening)
-
-    } catch (err) {
-        console.log("Error", err);
-        throw err
-    }
-})()
+app.listen(PORT, () => {
+    console.log(`App is running at http://localhost:${PORT}`)
+})

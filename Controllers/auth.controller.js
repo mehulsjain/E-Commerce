@@ -1,14 +1,12 @@
-import User from '../models/user.schema'
-import asyncHandler from '../services/asyncHandler'
-import CustomError from '../utils/customError'
-import mailHelper from '../utils/mailHelper'
-import crypto from'crypto'
+const User = require('../models/user.schema')
+const asyncHandler = require('../services/asyncHandler')
+const CustomError = require('../utils/customError')
+const mailHelper = require('../utils/mailHelper')
+const crypto = require('crypto')
+const fileUpload = require('express-fileupload')
+const cloudinary = require('cloudinary')
+const cookieToken = require('../utils/cookieToken')
 
-export const cookieOptions = {
-    expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-    httpOnly: true,
-    // could be a seperate file in utils
-}
 
 /************************************************************* 
 * @SIGNUP
@@ -18,7 +16,19 @@ export const cookieOptions = {
 * @return User Object
 *************************************************************/
 
-export const signUp = asyncHandler(async (req, res) => {
+const signUp = asyncHandler(async (req, res) => {
+
+    let result;
+
+    if(req.files){
+        let file = req.files.photo
+        result = await cloudinary.v2.uploader.upload(file.tempFilePath, {
+            folder: "users",
+            width: 150,
+            crop: "scale"
+        })
+    }
+
     const {name, email, password} = req.body
 
     if(!name || !email || !password){
@@ -35,19 +45,14 @@ export const signUp = asyncHandler(async (req, res) => {
         name,
         email,
         //we dont have to encrypt password here as we are doing that in out models
-        password
+        password,
+        photo: {
+            id: result.public_id,
+            secure_url: result.secure_url
+        }
     });
-    const token = user.getJwtToken()
-    console.log(user);
-    user.password = undefined
 
-    res.cookie("token", token, cookieOptions)
-
-    res.status(200).json({
-        success: true,
-        token.
-        user
-    })
+    cookieToken(user, res);
 })
 
 /************************************************************* 
@@ -58,12 +63,15 @@ export const signUp = asyncHandler(async (req, res) => {
 * @return User Object
 *************************************************************/
 
-export const login = asyncHandler(async (req, res) => {
+const login = asyncHandler(async (req, res) => {
     const {email, password} = req.body
 
     if(!email || !password){
         throw new CustomError('Please fill all fields', 400)
     }
+
+    //.select(+password) is to instruct the model to send password from
+    // backend too as we have configured our model to not send password by default 
     const user = await User.findOne({email}).select("+password")
     
     if(!user){
@@ -73,36 +81,31 @@ export const login = asyncHandler(async (req, res) => {
     const isPasswordMatched = await user.comparePassword(password)
 
     if(isPasswordMatched){
-        const token = user.getJwtToken()
-        user.password = undefined
-        res.cookie("token", token, cookieOptions)
-        return res.status(200).json({
-            success: true,
-            token,
-            user
-        })
+        cookieToken(user, res)
+    }else{
+        throw new CustomError('Invalid credentials', 400)
     }
 })
 
 /************************************************************* 
-* @LOGIN
+* @LOGOUT
 * @route http://localhost:5000/api/auth/logout
 * @description User logout by clearing user cookies
 * @parameters 
 * @return success message
 *************************************************************/
 
-export const logout = asyncHandler(async (_req, res) => {
+const logout = asyncHandler(async (_req, res) => {
     //res.clearCookie()
     res.cookie("token", null, {
         expires:new Date(Date.now()),
         httpOnly: true
     })
     res.status(200).json({
-        success(200).json({
+        // success(200).json({
             success: true,
             message: "Logged Out"
-        })
+        // })
     })
 })
 
@@ -114,23 +117,26 @@ export const logout = asyncHandler(async (_req, res) => {
 * @return success message - email snet
 *************************************************************/
 
-export const forgotPassword = asyncHandler(async(req, res) => {
+const forgotPassword = asyncHandler(async(req, res) => {
     const {email} = req.body
 
     const user = await User.findOne({email})
+    //if user not found in db
     if(!user) {
-        throw new CustomError('Usder not found' 404)
+        throw new CustomError('Usder not found', 404)
     }
+
+    // get token from user model method
     const resetToken = user.generateForgetPasswordToken()
     
     //saving resettoken data in user and in object in database using .save() meathod
     await user.save({validateBeforeSave: false}) 
 
-    // taking parameters from req object described in express documentation in detail
+    //creating a url - taking parameters from req object described in express documentation in detail
     const resetUrl =
-    `${req.protocol}://${req.get("host")}/api/auth/password/reset/${resetToken}`
+    `${req.protocol}://${req.get("host")}/api/v1/password/reset/${resetToken}`
     
-    const text =    Your password reset url is \n \n ${resetUrl} \n\n
+    const text =   ` Your password reset url is \n \n ${resetUrl} \n\n`
 
     try {
         await mailHelper({
@@ -161,43 +167,40 @@ export const forgotPassword = asyncHandler(async(req, res) => {
 * @return User object
 *************************************************************/
 
-export const resetPassword = asyncHandler(async (req, res) => {
-    const {token:resetToken} = req.params
-    const {password, confirmPassword} = req.body
+const resetPassword = asyncHandler(async (req, res) => {
+    try {
+        const token = req.params.token
+        const {password, confirmPassword} = req.body
 
-    const resetPasswordToken = crypto
-    .createHash('sha256')
-    .update(resetToken)
-    .digest(hex)
+        const resetPasswordToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex")
 
-    const user = await User.findOne({
-        forgotPasswordToken: resetPasswordToken,
-        forgotPasswordExpiry: {$gt: Date.now()}
-    });
+        const user = await User.findOne({
+            forgotPasswordToken: resetPasswordToken,
+            forgotPasswordExpiry: {$gt: Date.now()}
+        });
 
-    if(!user){
-        throw new CustomError('password token is invalid or expired', 400 )
+        if(!user){
+            throw new CustomError('password token is invalid or expired', 400 )
+        }
+
+        if(password !== confirmPassword){
+            throw new CustomError('password and confpassword dont match', 400 )
+        }
+
+        user.password = password
+        user.forgotPasswordToken = undefined
+        user.forgotPasswordExpiry = undefined
+
+        await user.save()
+
+        //create token and send as response
+        cookieToken(user, res)    
+    } catch (error) {
+        console.log(error)
     }
-
-    if(password !== confirmPassword){
-        throw new CustomError('password and confpassword dont match', 400 )
-    }
-
-    user.password = password
-    user.forgotPasswordToken = undefined
-    user.forgotPasswordExpiry = undefined
-
-    await user.save()
-
-    //create token and send as response
-    const token = user.getJwtToken()
-    user.password = undefined
-    res.cookie('token', token, cookieOptions)
-    res.status(200).json({
-        success: true,
-        user
-    })
-
 })
 
 //TODO: create a controller for change password
@@ -210,7 +213,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
 * @parameters * @return User object
 *************************************************************/
 
-export const getProfile = asyncHandler(async (req, res) => {
+const getProfile = asyncHandler(async (req, res) => {
     const {user} = req
     if(!user){
         throw new CustomError('User not found', 404)
@@ -220,3 +223,12 @@ export const getProfile = asyncHandler(async (req, res) => {
         user
     })
 })
+
+module.exports = {
+    signUp,
+    login,
+    logout,
+    forgotPassword,
+    resetPassword,
+    getProfile
+}

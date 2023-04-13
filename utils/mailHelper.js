@@ -1,7 +1,8 @@
-import transporter from "../config/transporter.config";
-import config from "../config/index";
+const transporter = require("../config/transporter.config");
+const config = require("../config/index");
+const nodemailer = require('nodemailer');
 
-const mailHelper = async (options) {
+const mailHelper = async (options) => {
     const message = {
         from: config.SMTP_MAIL_EMAIL, // sender address
         to: options.email, // list of receivers
@@ -13,4 +14,4 @@ const mailHelper = async (options) {
     await transporter.sendMail(message)
 }
 
-export default mailHelper
+module.exports = mailHelper
